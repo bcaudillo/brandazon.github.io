@@ -1,4 +1,4 @@
- import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 
 // --- Global Context for Cart Management ---
 const CartContext = createContext();
@@ -634,7 +634,7 @@ const ProductDetailPage = ({ productId, navigate }) => { // productId is now rec
         console.log('Campaign Attribution Recorded (from URL parameters):', utmParams);
       }
     }
-  }, [productId, product]); // Depend on productId and product to ensure tracking fires when they are resolved
+  }, [productId, product, utmParams]); // Depend on productId, product, and utmParams to ensure tracking fires when they are resolved
 
   if (!product) {
     return (
