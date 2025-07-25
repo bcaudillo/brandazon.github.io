@@ -2,7 +2,7 @@
   "name": "brandazon-ecommerce",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://your-github-username.github.io/brandazon-ecommerce",
+  "homepage": "https://bcaudillo.github.io/brandazon-ecommerce",
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
