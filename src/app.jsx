@@ -800,7 +800,9 @@ const CartPage = ({ navigate }) => {
             </button>
             <button
               onClick={handleCheckout}
-              className="bg-green-600 text-white py-3 px-6 rounded-lg text-lg font-semibold hover:bg-green-700 transition duration-300 ease-in-out shadow-md hover:shadow-lg"
+              disabled={cart.length === 0}
+              className={`py-3 px-6 rounded-lg text-lg font-semibold transition duration-300 ease-in-out shadow-md hover:shadow-lg
+                  ${cart.length === 0 ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
             >
               Proceed to Checkout
             </button>
