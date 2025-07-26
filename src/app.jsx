@@ -1115,7 +1115,7 @@ const CheckoutPage = ({ navigate }) => {
         step: 1, // Assuming this is the first step of checkout
       });
     }
-  }, []); // Only on mount
+  }, [userId, userTraits]); 
 
   const handlePlaceOrder = () => {
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
