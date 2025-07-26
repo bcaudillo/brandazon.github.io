@@ -3,16 +3,6 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 // --- Global Context for Cart Management ---
 const CartContext = createContext();
 
-// --- Helper function to safely call Segment analytics ---
-const safeAnalytics = (method, ...args) => {
-  if (typeof window !== 'undefined' && window.analytics && typeof window.analytics[method] === 'function') {
-    window.analytics[method](...args);
-  } else {
-    // console.warn(`Segment analytics.${method} not available.`);
-    // console.log(`Simulating analytics.${method} call:`, ...args); // For debugging in environments without Segment SDK
-  }
-};
-
 // --- Helper to format product data for Segment events ---
 const formatProductForSegment = (product, quantity = 1, position = null) => {
   return {
@@ -648,25 +638,27 @@ const Header = ({ navigate, cartItemCount }) => {
 const PartnershipBanner = () => {
   useEffect(() => {
     // Promotion Viewed event
-    safeAnalytics('track', 'Promotion Viewed', {
-      promotion_id: 'labubu_popmart_banner_top',
-      creative: 'labubu_x_popmart_banner',
-      name: 'Labubu x Popmart Exclusive Partnership',
-      position: 'home_banner_top'
-    });
+    if (window.analytics) {
+      window.analytics.track('Promotion Viewed', {
+        promotion_id: 'labubu_popmart_banner_top',
+        creative: 'labubu_x_popmart_banner',
+        name: 'Labubu x Popmart Exclusive Partnership',
+        position: 'home_banner_top'
+      });
+    }
   }, []);
 
   const handleShopNowClick = () => {
     // Promotion Clicked event
-    safeAnalytics('track', 'Promotion Clicked', {
-      promotion_id: 'labubu_popmart_banner_top',
-      creative: 'labubu_x_popmart_banner',
-      name: 'Labubu x Popmart Exclusive Partnership',
-      position: 'home_banner_top'
-    });
-    // Navigate to products page or a specific Labubu category page
-    // For now, we'll just log it. In a real app, this would navigate.
-    // navigate('products'); // If navigate was passed as a prop
+    if (window.analytics) {
+      window.analytics.track('Promotion Clicked', {
+        promotion_id: 'labubu_popmart_banner_top',
+        creative: 'labubu_x_popmart_banner',
+        name: 'Labubu x Popmart Exclusive Partnership',
+        position: 'home_banner_top'
+      });
+    }
+    // In a real app, this would navigate to a specific Labubu category page or product list
   };
 
   return (
@@ -712,15 +704,19 @@ const ProductCard = ({ product, navigate, position }) => {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
     // Product Added event
-    safeAnalytics('track', 'Product Added', {
-      cart_id: 'brandazon_cart_id', // Placeholder cart ID
-      products: [formatProductForSegment(product, 1, position)]
-    });
+    if (window.analytics) {
+      window.analytics.track('Product Added', {
+        cart_id: 'brandazon_cart_id', // Placeholder cart ID
+        products: [formatProductForSegment(product, 1)] // Always add 1 unit per click
+      });
+    }
   };
 
   const handleViewDetails = () => {
     // Product Clicked event
-    safeAnalytics('track', 'Product Clicked', formatProductForSegment(product, 1, position));
+    if (window.analytics) {
+      window.analytics.track('Product Clicked', formatProductForSegment(product, 1, position));
+    }
     navigate('productDetail', product.id);
   };
 
@@ -760,11 +756,13 @@ const ProductCard = ({ product, navigate, position }) => {
 const HomePage = ({ navigate }) => {
   useEffect(() => {
     // Product List Viewed event for Featured Products
-    safeAnalytics('track', 'Product List Viewed', {
-      list_id: 'featured_labubu_collectibles',
-      category: 'Collectible',
-      products: featuredProducts.map((p, index) => formatProductForSegment(p, 1, index + 1))
-    });
+    if (window.analytics) {
+      window.analytics.track('Product List Viewed', {
+        list_id: 'featured_labubu_collectibles',
+        category: 'Collectible',
+        products: featuredProducts.map((p, index) => formatProductForSegment(p, 1, index + 1))
+      });
+    }
   }, []);
 
   return (
@@ -791,11 +789,13 @@ const HomePage = ({ navigate }) => {
 const ProductsPage = ({ navigate }) => {
   useEffect(() => {
     // Product List Viewed event for All Products
-    safeAnalytics('track', 'Product List Viewed', {
-      list_id: 'all_products',
-      category: 'All',
-      products: products.map((p, index) => formatProductForSegment(p, 1, index + 1))
-    });
+    if (window.analytics) {
+      window.analytics.track('Product List Viewed', {
+        list_id: 'all_products',
+        category: 'All',
+        products: products.map((p, index) => formatProductForSegment(p, 1, index + 1))
+      });
+    }
   }, []);
 
   return (
@@ -835,29 +835,32 @@ const ProductDetailPage = ({ productId, navigate }) => {
 
     if (product) {
       // Product Viewed event
-      safeAnalytics('track', 'Product Viewed', {
-        product_id: product.id,
-        sku: product.sku,
-        category: product.category,
-        name: product.name,
-        brand: product.brand,
-        variant: product.variant,
-        price: product.price,
-        quantity: 1,
-        currency: 'USD', // Assuming USD as default currency
-        value: product.price, // Value for single item view
-        url: `${window.location.origin}${window.location.pathname}#/product/${product.id}`,
-        image_url: product.imageUrl,
-        // position: ... // Position is not applicable for a single product detail page
-      });
+      if (window.analytics) {
+        window.analytics.track('Product Viewed', {
+          product_id: product.id,
+          sku: product.sku,
+          category: product.category,
+          name: product.name,
+          brand: product.brand,
+          variant: product.variant,
+          price: product.price,
+          quantity: 1,
+          currency: 'USD', // Assuming USD as default currency
+          value: product.price, // Value for single item view
+          url: `${window.location.origin}${window.location.pathname}#/product/${product.id}`,
+          image_url: product.imageUrl,
+        });
+      }
 
       // Campaign Attribution Recorded (if UTMs are present)
       if (Object.keys(parsedUtm).length > 0) {
-        safeAnalytics('track', 'Campaign Attribution Recorded', {
-          product_id: product.id,
-          product_name: product.name,
-          ...parsedUtm // Spread all collected UTM/GA parameters
-        });
+        if (window.analytics) {
+          window.analytics.track('Campaign Attribution Recorded', {
+            product_id: product.id,
+            product_name: product.name,
+            ...parsedUtm
+          });
+        }
       }
     }
   }, [productId, product, utmParams]);
@@ -875,20 +878,20 @@ const ProductDetailPage = ({ productId, navigate }) => {
 
   const handleAddToCart = () => {
     const existingItem = cart.find(item => item.id === product.id);
-    let quantityAdded = 1;
     if (existingItem) {
       setCart(cart.map(item =>
         item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
       ));
-      quantityAdded = existingItem.quantity + 1; // Total quantity in cart after add
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
     // Product Added event
-    safeAnalytics('track', 'Product Added', {
-      cart_id: 'brandazon_cart_id', // Placeholder cart ID
-      products: [formatProductForSegment(product, 1)] // Always add 1 unit per click
-    });
+    if (window.analytics) {
+      window.analytics.track('Product Added', {
+        cart_id: 'brandazon_cart_id', // Placeholder cart ID
+        products: [formatProductForSegment(product, 1)] // Always add 1 unit per click
+      });
+    }
   };
 
   return (
@@ -927,10 +930,12 @@ const CartPage = ({ navigate }) => {
 
   useEffect(() => {
     // Cart Viewed event
-    safeAnalytics('track', 'Cart Viewed', {
-      cart_id: 'brandazon_cart_id', // Placeholder cart ID
-      products: cart.map(item => formatProductForSegment(item, item.quantity))
-    });
+    if (window.analytics) {
+      window.analytics.track('Cart Viewed', {
+        cart_id: 'brandazon_cart_id', // Placeholder cart ID
+        products: cart.map(item => formatProductForSegment(item, item.quantity))
+      });
+    }
   }, [cart]); // Re-track when cart changes
 
   const updateQuantity = (id, delta) => {
@@ -940,10 +945,12 @@ const CartPage = ({ navigate }) => {
     const newQuantity = item.quantity + delta;
     if (newQuantity <= 0) {
       // Product Removed event
-      safeAnalytics('track', 'Product Removed', {
-        cart_id: 'brandazon_cart_id',
-        products: [formatProductForSegment(item, item.quantity)] // Track original quantity being removed
-      });
+      if (window.analytics) {
+        window.analytics.track('Product Removed', {
+          cart_id: 'brandazon_cart_id',
+          products: [formatProductForSegment(item, item.quantity)] // Track original quantity being removed
+        });
+      }
       setCart(cart.filter(i => i.id !== id));
     } else {
       setCart(cart.map(i =>
@@ -951,16 +958,20 @@ const CartPage = ({ navigate }) => {
       ));
       if (delta > 0) {
         // Product Added event (for quantity increase)
-        safeAnalytics('track', 'Product Added', {
-          cart_id: 'brandazon_cart_id',
-          products: [formatProductForSegment(item, 1)] // Track 1 unit added
-        });
+        if (window.analytics) {
+          window.analytics.track('Product Added', {
+            cart_id: 'brandazon_cart_id',
+            products: [formatProductForSegment(item, 1)] // Track 1 unit added
+          });
+        }
       } else {
         // Product Removed event (for quantity decrease)
-        safeAnalytics('track', 'Product Removed', {
-          cart_id: 'brandazon_cart_id',
-          products: [formatProductForSegment(item, 1)] // Track 1 unit removed
-        });
+        if (window.analytics) {
+          window.analytics.track('Product Removed', {
+            cart_id: 'brandazon_cart_id',
+            products: [formatProductForSegment(item, 1)] // Track 1 unit removed
+          });
+        }
       }
     }
   };
@@ -969,10 +980,12 @@ const CartPage = ({ navigate }) => {
     const itemToRemove = cart.find(item => item.id === id);
     if (itemToRemove) {
       // Product Removed event (for full item removal)
-      safeAnalytics('track', 'Product Removed', {
-        cart_id: 'brandazon_cart_id',
-        products: [formatProductForSegment(itemToRemove, itemToRemove.quantity)]
-      });
+      if (window.analytics) {
+        window.analytics.track('Product Removed', {
+          cart_id: 'brandazon_cart_id',
+          products: [formatProductForSegment(itemToRemove, itemToRemove.quantity)]
+        });
+      }
       setCart(cart.filter(item => item.id !== id));
     }
   };
@@ -981,17 +994,19 @@ const CartPage = ({ navigate }) => {
 
   const handleCheckout = () => {
     // Checkout Started event
-    safeAnalytics('track', 'Checkout Started', {
-      order_id: `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Generate a unique order_id
-      affiliation: 'Brandazon Online Store',
-      value: totalAmount,
-      revenue: totalAmount, // Assuming no separate discounts/taxes for simplicity here
-      shipping: 0, // Placeholder
-      tax: 0,      // Placeholder
-      discount: 0, // Placeholder
-      currency: 'USD',
-      products: cart.map(item => formatProductForSegment(item, item.quantity))
-    });
+    if (window.analytics) {
+      window.analytics.track('Checkout Started', {
+        order_id: `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Generate a unique order_id
+        affiliation: 'Brandazon Online Store',
+        value: totalAmount,
+        revenue: totalAmount, // Assuming no separate discounts/taxes for simplicity here
+        shipping: 0, // Placeholder
+        tax: 0,      // Placeholder
+        discount: 0, // Placeholder
+        currency: 'USD',
+        products: cart.map(item => formatProductForSegment(item, item.quantity))
+      });
+    }
     navigate('checkout');
   };
 
@@ -1085,53 +1100,57 @@ const CheckoutPage = ({ navigate }) => {
   const userTraits = {
     email: 'user@example.com',
     name: 'John Doe',
-    // Add other user properties here
   };
 
   useEffect(() => {
     // Identify call on checkout page load (or when user logs in/is identified)
-    safeAnalytics('identify', userId, userTraits);
+    if (window.analytics) {
+      window.analytics.identify(userId, userTraits);
+    }
 
     // Checkout Step Viewed event
-    safeAnalytics('track', 'Checkout Step Viewed', {
-      checkout_id: 'brandazon_checkout_id', // Placeholder checkout ID
-      step: 1, // Assuming this is the first step of checkout
-      // shipping_method: '...', // Can be added if selected earlier
-      // payment_method: '...'   // Can be added if selected earlier
-    });
+    if (window.analytics) {
+      window.analytics.track('Checkout Step Viewed', {
+        checkout_id: 'brandazon_checkout_id', // Placeholder checkout ID
+        step: 1, // Assuming this is the first step of checkout
+      });
+    }
   }, []); // Only on mount
 
   const handlePlaceOrder = () => {
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const revenue = totalAmount; // Assuming revenue is total amount for simplicity
-    const shipping = 0; // Placeholder
-    const tax = 0;      // Placeholder
-    const discount = 0; // Placeholder
-    const coupon = 'N/A'; // Placeholder
+    const revenue = totalAmount;
+    const shipping = 0;
+    const tax = 0;
+    const discount = 0;
+    const coupon = 'N/A';
 
     // Payment Info Entered event (simulated before Order Completed)
-    safeAnalytics('track', 'Payment Info Entered', {
-      checkout_id: 'brandazon_checkout_id',
-      order_id: orderId,
-      // step: 2, // If you have a separate payment step
-      payment_method: 'Credit Card' // Placeholder
-    });
+    if (window.analytics) {
+      window.analytics.track('Payment Info Entered', {
+        checkout_id: 'brandazon_checkout_id',
+        order_id: orderId,
+        payment_method: 'Credit Card' // Placeholder
+      });
+    }
 
     // Order Completed event
-    safeAnalytics('track', 'Order Completed', {
-      checkout_id: 'brandazon_checkout_id',
-      order_id: orderId,
-      affiliation: 'Brandazon Online Store',
-      total: totalAmount + shipping + tax - discount, // Total including shipping/tax, after discount
-      subtotal: totalAmount, // Subtotal before shipping/tax, after discounts
-      revenue: revenue,
-      shipping: shipping,
-      tax: tax,
-      discount: discount,
-      coupon: coupon,
-      currency: 'USD',
-      products: cart.map(item => formatProductForSegment(item, item.quantity))
-    });
+    if (window.analytics) {
+      window.analytics.track('Order Completed', {
+        checkout_id: 'brandazon_checkout_id',
+        order_id: orderId,
+        affiliation: 'Brandazon Online Store',
+        total: totalAmount + shipping + tax - discount,
+        subtotal: totalAmount,
+        revenue: revenue,
+        shipping: shipping,
+        tax: tax,
+        discount: discount,
+        coupon: coupon,
+        currency: 'USD',
+        products: cart.map(item => formatProductForSegment(item, item.quantity))
+      });
+    }
 
     setOrderPlaced(true);
     setCart([]); // Clear cart after purchase
@@ -1247,7 +1266,12 @@ const SimulatedSearchEnginePage = () => {
 
   useEffect(() => {
     // Page view for Simulated Search Engine
-    safeAnalytics('page', 'Simulated Search Engine');
+    if (window.analytics) {
+      window.analytics.page('Marketing', 'Simulated Search Engine Page', {
+        path: window.location.pathname + window.location.hash,
+        url: window.location.href
+      });
+    }
   }, []);
 
   const handleAdClick = () => {
@@ -1265,9 +1289,11 @@ const SimulatedSearchEnginePage = () => {
     }
 
     // Products Searched event
-    safeAnalytics('track', 'Products Searched', {
-      query: searchTerm.trim()
-    });
+    if (window.analytics) {
+      window.analytics.track('Products Searched', {
+        query: searchTerm.trim()
+      });
+    }
 
     // Construct the query parameters string
     const queryParams = new URLSearchParams();
@@ -1357,7 +1383,8 @@ const App = () => {
         setSelectedProductId(null);
         pageName = 'Checkout Page';
         pageCategory = 'E-commerce';
-      } else {
+      }
+      else {
         setCurrentPage('home');
         setSelectedProductId(null);
         pageName = 'Home Page';
@@ -1365,10 +1392,12 @@ const App = () => {
       }
 
       // Segment Page call for every route change
-      safeAnalytics('page', pageCategory, pageName, {
-        path: window.location.pathname + window.location.hash,
-        url: window.location.href
-      });
+      if (window.analytics) {
+        window.analytics.page(pageCategory, pageName, {
+          path: window.location.pathname + window.location.hash,
+          url: window.location.href
+        });
+      }
 
     };
 
@@ -1387,13 +1416,19 @@ const App = () => {
     if (!anonymousId) {
       const newAnonymousId = `anon-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
       localStorage.setItem('anonymousId', newAnonymousId);
-      safeAnalytics('identify', newAnonymousId); // Identify with anonymous ID
+      if (window.analytics) {
+        window.analytics.identify(newAnonymousId); // Identify with anonymous ID
+      }
     } else {
-      safeAnalytics('identify', anonymousId); // Re-identify existing anonymous user
+      if (window.analytics) {
+        window.analytics.identify(anonymousId); // Re-identify existing anonymous user
+      }
     }
 
     // Example of tracking a custom event on app load
-    safeAnalytics('track', 'Application Loaded');
+    if (window.analytics) {
+      window.analytics.track('Application Loaded');
+    }
 
   }, []);
 
