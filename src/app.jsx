@@ -3,6 +3,34 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 // --- Global Context for Cart Management ---
 const CartContext = createContext();
 
+// --- Helper function to safely call Segment analytics ---
+const safeAnalytics = (method, ...args) => {
+  if (typeof window !== 'undefined' && window.analytics && typeof window.analytics[method] === 'function') {
+    window.analytics[method](...args);
+  } else {
+    // console.warn(`Segment analytics.${method} not available.`);
+    // console.log(`Simulating analytics.${method} call:`, ...args); // For debugging in environments without Segment SDK
+  }
+};
+
+// --- Helper to format product data for Segment events ---
+const formatProductForSegment = (product, quantity = 1, position = null) => {
+  return {
+    product_id: product.id,
+    sku: product.sku,
+    category: product.category,
+    name: product.name,
+    brand: product.brand,
+    variant: product.variant,
+    price: product.price,
+    quantity: quantity,
+    // coupon: product.coupon, // Add if coupons are implemented per product
+    position: position,
+    url: `${window.location.origin}${window.location.pathname}#/product/${product.id}`, // Dynamic URL
+    image_url: product.imageUrl,
+  };
+};
+
 // --- Expanded Product Data ---
 const products = [
   {
@@ -11,7 +39,10 @@ const products = [
     description: 'The classic board game of property trading, updated with new tokens and rules for the 3rd edition.',
     price: 29.99,
     imageUrl: 'https://placehold.co/300x300/F0F8FF/000000?text=Monopoly+3rd',
-    category: 'Games'
+    category: 'Games',
+    sku: 'GM-MONO-001',
+    brand: 'Hasbro',
+    variant: 'Standard'
   },
   {
     id: 'uno-card-game',
@@ -19,7 +50,10 @@ const products = [
     description: 'The timeless card game of matching colors and numbers. Easy to pick up, impossible to put down!',
     price: 9.99,
     imageUrl: 'https://placehold.co/300x300/E6E6FA/000000?text=Uno+Cards',
-    category: 'Games'
+    category: 'Games',
+    sku: 'GM-UNO-001',
+    brand: 'Mattel',
+    variant: 'Standard'
   },
   {
     id: 'special-facial-soap',
@@ -27,7 +61,10 @@ const products = [
     description: 'Gentle and effective facial soap designed for all skin types, leaving your face feeling fresh and clean.',
     price: 12.50,
     imageUrl: 'https://placehold.co/300x300/F5F5DC/000000?text=Facial+Soap',
-    category: 'Beauty'
+    category: 'Beauty',
+    sku: 'BT-SOAP-001',
+    brand: 'PureSkin',
+    variant: 'Unscented'
   },
   {
     id: 'fancy-hairbrush',
@@ -35,7 +72,10 @@ const products = [
     description: 'Ergonomically designed hairbrush with natural bristles for smooth, tangle-free hair.',
     price: 18.00,
     imageUrl: 'https://placehold.co/300x300/FFF0F5/000000?text=Hairbrush',
-    category: 'Beauty'
+    category: 'Beauty',
+    sku: 'BT-HBRUSH-001',
+    brand: 'GlamLocks',
+    variant: 'Large'
   },
   {
     id: 'labubu-blind-box-series-8',
@@ -43,7 +83,10 @@ const products = [
     description: 'Discover the magic of Labubu with a surprise figure from Series 8. Collect them all!',
     price: 16.99,
     imageUrl: 'https://placehold.co/300x300/ADD8E6/000000?text=Labubu+Series+8',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-S8',
+    brand: 'Popmart',
+    variant: 'Blind Box'
   },
   {
     id: 'labubu-ghost-hunter-plush',
@@ -51,7 +94,10 @@ const products = [
     description: 'Cuddly Labubu plush in a spooky ghost hunter outfit. Perfect for fans and collectors.',
     price: 25.00,
     imageUrl: 'https://placehold.co/300x300/B0E0E6/000000?text=Labubu+Ghost',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-GH',
+    brand: 'Popmart',
+    variant: 'Plush'
   },
   {
     id: 'labubu-plush-keychain',
@@ -59,7 +105,10 @@ const products = [
     description: 'Take Labubu with you everywhere with this adorable plush keychain. A small but mighty collectible.',
     price: 9.50,
     imageUrl: 'https://placehold.co/300x300/87CEEB/000000?text=Labubu+Keychain',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-KC',
+    brand: 'Popmart',
+    variant: 'Keychain'
   },
   {
     id: 'electric-pour-over-kettle',
@@ -67,7 +116,10 @@ const products = [
     description: 'Precision temperature control for the perfect pour-over coffee. Sleek design for any kitchen.',
     price: 59.99,
     imageUrl: 'https://placehold.co/300x300/6495ED/000000?text=Pour-over+Kettle',
-    category: 'Kitchen'
+    category: 'Kitchen',
+    sku: 'KCH-KETTLE-001',
+    brand: 'BrewMaster',
+    variant: 'Black'
   },
   {
     id: 'retro-gaming-mousepad',
@@ -75,7 +127,10 @@ const products = [
     description: 'Large mousepad with a nostalgic retro gaming design. Smooth surface for optimal mouse control.',
     price: 14.99,
     imageUrl: 'https://placehold.co/300x300/4682B4/000000?text=Retro+Mousepad',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-MPAD-001',
+    brand: 'GameGear',
+    variant: 'Large'
   },
   {
     id: 'airpods-pro-3rd-gen',
@@ -83,7 +138,10 @@ const products = [
     description: 'Immersive sound with active noise cancellation. The latest generation for superior audio experience.',
     price: 249.00,
     imageUrl: 'https://placehold.co/300x300/5F9EA0/000000?text=AirPods+Pro',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-AIRPODS-003',
+    brand: 'Apple',
+    variant: 'Pro'
   },
   {
     id: 'nintendo-switch-lite',
@@ -91,7 +149,10 @@ const products = [
     description: 'Compact, lightweight Nintendo Switch system dedicated to handheld play. Perfect for gaming on the go.',
     price: 199.99,
     imageUrl: 'https://placehold.co/300x300/7FFFD4/000000?text=Switch+Lite',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'GM-SWITCHL-001',
+    brand: 'Nintendo',
+    variant: 'Yellow'
   },
   {
     id: 'collectible-ceramic-mug',
@@ -99,7 +160,10 @@ const products = [
     description: 'High-quality ceramic mug with a unique design, perfect for collectors or daily use.',
     price: 11.99,
     imageUrl: 'https://placehold.co/300x300/AFEEEE/000000?text=Ceramic+Mug',
-    category: 'Collectible' // Changed to collectible for Popmart relevance
+    category: 'Collectible',
+    sku: 'COL-MUG-001',
+    brand: 'ArtisanCraft',
+    variant: 'Standard'
   },
   {
     id: 'summer-splash-towel',
@@ -107,7 +171,10 @@ const products = [
     description: 'Ultra-absorbent and quick-drying towel, ideal for beach days, pool parties, or gym sessions.',
     price: 19.99,
     imageUrl: 'https://placehold.co/300x300/00CED1/000000?text=Splash+Towel',
-    category: 'Home Goods'
+    category: 'Home Goods',
+    sku: 'HG-TOWEL-001',
+    brand: 'AquaDry',
+    variant: 'Beach'
   },
   {
     id: 'holiday-cookie-tin',
@@ -115,7 +182,10 @@ const products = [
     description: 'A festive tin filled with an assortment of delicious holiday cookies. Great for gifting!',
     price: 15.00,
     imageUrl: 'https://placehold.co/300x300/40E0D0/000000?text=Cookie+Tin',
-    category: 'Food'
+    category: 'Food',
+    sku: 'FD-COOKIE-001',
+    brand: 'SweetTreats',
+    variant: 'Assorted'
   },
   {
     id: 'wireless-pet-tracker',
@@ -123,7 +193,10 @@ const products = [
     description: 'Keep track of your furry friend with this compact and reliable wireless pet tracker.',
     price: 45.00,
     imageUrl: 'https://placehold.co/300x300/20B2AA/000000?text=Pet+Tracker',
-    category: 'Pet Supplies'
+    category: 'Pet Supplies',
+    sku: 'PET-TRACK-001',
+    brand: 'PetSafe',
+    variant: 'GPS'
   },
   {
     id: 'smart-home-hub-mini',
@@ -131,7 +204,10 @@ const products = [
     description: 'Centralize your smart home devices with this mini hub. Control lights, thermostats, and more.',
     price: 79.99,
     imageUrl: 'https://placehold.co/300x300/3CB371/000000?text=Smart+Hub',
-    category: 'Smart Home'
+    category: 'Smart Home',
+    sku: 'SMART-HUB-001',
+    brand: 'ConnectHome',
+    variant: 'Mini'
   },
   {
     id: 'mystery-snack-pack',
@@ -139,7 +215,10 @@ const products = [
     description: 'A surprise assortment of delicious and unique snacks from around the world. What will you get?',
     price: 10.00,
     imageUrl: 'https://placehold.co/300x300/98FB98/000000?text=Mystery+Snack',
-    category: 'Food'
+    category: 'Food',
+    sku: 'FD-SNACK-001',
+    brand: 'GlobalBites',
+    variant: 'Assorted'
   },
   {
     id: 'stainless-steel-tumbler',
@@ -147,7 +226,10 @@ const products = [
     description: 'Double-walled insulated tumbler to keep your drinks hot or cold for hours. Perfect for on-the-go.',
     price: 22.99,
     imageUrl: 'https://placehold.co/300x300/ADFF2F/000000?text=Steel+Tumbler',
-    category: 'Home Goods'
+    category: 'Home Goods',
+    sku: 'HG-TUMBLER-001',
+    brand: 'HydratePro',
+    variant: '20oz'
   },
   {
     id: 'rechargeable-hand-warmer',
@@ -155,7 +237,10 @@ const products = [
     description: 'Stay warm in cold weather with this portable and rechargeable hand warmer. Reusable and eco-friendly.',
     price: 28.00,
     imageUrl: 'https://placehold.co/300x300/7CFC00/000000?text=Hand+Warmer',
-    category: 'Outdoor'
+    category: 'Outdoor',
+    sku: 'OUT-HWARM-001',
+    brand: 'WarmHands',
+    variant: 'USB'
   },
   {
     id: 'super-soft-throw-blanket',
@@ -163,7 +248,10 @@ const products = [
     description: 'Luxuriously soft throw blanket, perfect for cozying up on the couch or adding a touch of comfort to any room.',
     price: 35.00,
     imageUrl: 'https://placehold.co/300x300/00FF7F/000000?text=Throw+Blanket',
-    category: 'Home Goods'
+    category: 'Home Goods',
+    sku: 'HG-BLANKET-001',
+    brand: 'CozyHome',
+    variant: 'Fleece'
   },
   {
     id: 'labubu-golden-edition-figure',
@@ -171,7 +259,10 @@ const products = [
     description: 'A rare and exclusive golden edition Labubu figure. A must-have for serious collectors!',
     price: 49.99,
     imageUrl: 'https://placehold.co/300x300/32CD32/000000?text=Labubu+Golden',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-GOLD',
+    brand: 'Popmart',
+    variant: 'Golden'
   },
   {
     id: 'wireless-earbuds-gen2',
@@ -179,7 +270,10 @@ const products = [
     description: 'Second generation wireless earbuds with enhanced sound quality and longer battery life.',
     price: 89.99,
     imageUrl: 'https://placehold.co/300x300/228B22/000000?text=Earbuds+Gen2',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-EARBUDS-002',
+    brand: 'AudioPro',
+    variant: 'Black'
   },
   {
     id: 'led-desk-lamp-pro',
@@ -187,7 +281,10 @@ const products = [
     description: 'Adjustable LED desk lamp with multiple brightness and color temperature settings. Perfect for work or study.',
     price: 49.00,
     imageUrl: 'https://placehold.co/300x300/008000/000000?text=Desk+Lamp+Pro',
-    category: 'Home Office'
+    category: 'Home Office',
+    sku: 'HO-LAMP-001',
+    brand: 'BrightDesk',
+    variant: 'Pro'
   },
   {
     id: 'ergonomic-office-chair',
@@ -195,7 +292,10 @@ const products = [
     description: 'Comfortable and supportive office chair designed for long hours of work. Promotes good posture.',
     price: 199.00,
     imageUrl: 'https://placehold.co/300x300/006400/000000?text=Office+Chair',
-    category: 'Home Office'
+    category: 'Home Office',
+    sku: 'HO-OCHAIR-001',
+    brand: 'ErgoSit',
+    variant: 'Mesh'
   },
   {
     id: 'bluetooth-speaker-splash',
@@ -203,7 +303,10 @@ const products = [
     description: 'Waterproof portable Bluetooth speaker with powerful sound. Ideal for outdoor adventures.',
     price: 65.00,
     imageUrl: 'https://placehold.co/300x300/2E8B57/000000?text=Bluetooth+Speaker',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-SPEAKER-001',
+    brand: 'SoundWave',
+    variant: 'Waterproof'
   },
   {
     id: 'crystal-growing-kit',
@@ -211,7 +314,10 @@ const products = [
     description: 'Fun and educational kit for growing your own beautiful crystals. A great science project for kids.',
     price: 20.00,
     imageUrl: 'https://placehold.co/300x300/3CB371/000000?text=Crystal+Kit',
-    category: 'Toys & Hobbies'
+    category: 'Toys & Hobbies',
+    sku: 'TH-CRYSTAL-001',
+    brand: 'ScienceFun',
+    variant: 'Large'
   },
   {
     id: 'build-your-own-robot-kit',
@@ -219,7 +325,10 @@ const products = [
     description: 'Assemble your own functional robot with this engaging and educational kit. Learn about robotics.',
     price: 75.00,
     imageUrl: 'https://placehold.co/300x300/66CDAA/000000?text=Robot+Kit',
-    category: 'Toys & Hobbies'
+    category: 'Toys & Hobbies',
+    sku: 'TH-ROBOT-001',
+    brand: 'RoboKids',
+    variant: 'Beginner'
   },
   {
     id: 'color-changing-mug',
@@ -227,7 +336,10 @@ const products = [
     description: 'Watch your mug transform as you pour in hot liquids! A magical addition to your morning routine.',
     price: 14.00,
     imageUrl: 'https://placehold.co/300x300/8FBC8F/000000?text=Color+Mug',
-    category: 'Home Goods'
+    category: 'Home Goods',
+    sku: 'HG-MUG-001',
+    brand: 'MagicMugs',
+    variant: 'Heat Reveal'
   },
   {
     id: 'fashion-face-mask-3-pack',
@@ -235,7 +347,10 @@ const products = [
     description: 'Stylish and comfortable reusable face masks. Comes in a pack of three with assorted designs.',
     price: 18.00,
     imageUrl: 'https://placehold.co/300x300/90EE90/000000?text=Face+Masks',
-    category: 'Apparel'
+    category: 'Apparel',
+    sku: 'APP-MASK-001',
+    brand: 'StyleWear',
+    variant: 'Assorted'
   },
   {
     id: 'mini-projector-hd',
@@ -243,7 +358,10 @@ const products = [
     description: 'Compact and portable HD projector for movies, presentations, or gaming on the go.',
     price: 120.00,
     imageUrl: 'https://placehold.co/300x300/9ACD32/000000?text=Mini+Projector',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-PROJECTOR-001',
+    brand: 'ViewMax',
+    variant: 'HD'
   },
   {
     id: 'doggo-deluxe-bed',
@@ -251,7 +369,10 @@ const products = [
     description: 'Plush and supportive bed for your beloved canine companion. Provides ultimate comfort.',
     price: 55.00,
     imageUrl: 'https://placehold.co/300x300/6B8E23/000000?text=Dog+Bed',
-    category: 'Pet Supplies'
+    category: 'Pet Supplies',
+    sku: 'PET-DBED-001',
+    brand: 'ComfyPaws',
+    variant: 'Large'
   },
   {
     id: 'cat-castle-tower',
@@ -259,7 +380,10 @@ const products = [
     description: 'Multi-level cat tower with scratching posts, perches, and hideaways for endless feline fun.',
     price: 85.00,
     imageUrl: 'https://placehold.co/300x300/808000/000000?text=Cat+Tower',
-    category: 'Pet Supplies'
+    category: 'Pet Supplies',
+    sku: 'PET-CTOWER-001',
+    brand: 'KittyKingdom',
+    variant: 'Multi-level'
   },
   {
     id: 'all-season-yoga-mat',
@@ -267,7 +391,10 @@ const products = [
     description: 'Durable and comfortable yoga mat suitable for all seasons and various types of workouts.',
     price: 29.99,
     imageUrl: 'https://placehold.co/300x300/BDB76B/000000?text=Yoga+Mat',
-    category: 'Sports & Fitness'
+    category: 'Sports & Fitness',
+    sku: 'SF-YOGA-001',
+    brand: 'ZenFit',
+    variant: 'Standard'
   },
   {
     id: 'travel-packing-cubes',
@@ -275,7 +402,10 @@ const products = [
     description: 'Organize your luggage with these versatile packing cubes. Maximize space and minimize wrinkles.',
     price: 24.99,
     imageUrl: 'https://placehold.co/300x300/DAA520/000000?text=Packing+Cubes',
-    category: 'Travel'
+    category: 'Travel',
+    sku: 'TRVL-PCUBE-001',
+    brand: 'PackSmart',
+    variant: 'Set of 3'
   },
   {
     id: 'smart-plant-sensor',
@@ -283,7 +413,10 @@ const products = [
     description: 'Monitor your plant\'s health with this smart sensor. Provides data on light, moisture, and nutrients.',
     price: 39.99,
     imageUrl: 'https://placehold.co/300x300/FFD700/000000?text=Plant+Sensor',
-    category: 'Smart Home'
+    category: 'Smart Home',
+    sku: 'SMART-PLANT-001',
+    brand: 'GreenThumb',
+    variant: 'Basic'
   },
   {
     id: 'pop-culture-puzzle-set',
@@ -291,7 +424,10 @@ const products = [
     description: 'Challenging puzzle set featuring iconic pop culture references. Great for movie and TV enthusiasts.',
     price: 22.00,
     imageUrl: 'https://placehold.co/300x300/FFA500/000000?text=Pop+Puzzle',
-    category: 'Games'
+    category: 'Games',
+    sku: 'GM-PUZZLE-001',
+    brand: 'NerdPuzzles',
+    variant: '1000pc'
   },
   {
     id: 'classic-denim-jacket',
@@ -299,7 +435,10 @@ const products = [
     description: 'Timeless denim jacket, a versatile wardrobe staple for any season. Available in various washes.',
     price: 69.00,
     imageUrl: 'https://placehold.co/300x300/FF8C00/000000?text=Denim+Jacket',
-    category: 'Apparel'
+    category: 'Apparel',
+    sku: 'APP-DENIM-001',
+    brand: 'FashionCo',
+    variant: 'Blue'
   },
   {
     id: 'pocket-blender-pro',
@@ -307,7 +446,10 @@ const products = [
     description: 'Compact and powerful personal blender, perfect for smoothies on the go. Rechargeable battery.',
     price: 39.99,
     imageUrl: 'https://placehold.co/300x300/FF4500/000000?text=Pocket+Blender',
-    category: 'Kitchen'
+    category: 'Kitchen',
+    sku: 'KCH-PBLEND-001',
+    brand: 'BlendGo',
+    variant: 'Pro'
   },
   {
     id: 'microfiber-cleaning-slippers',
@@ -315,7 +457,10 @@ const products = [
     description: 'Clean your floors effortlessly while you walk with these innovative microfiber cleaning slippers.',
     price: 15.00,
     imageUrl: 'https://placehold.co/300x300/FF6347/000000?text=Cleaning+Slippers',
-    category: 'Home Goods'
+    category: 'Home Goods',
+    sku: 'HG-SLIPPER-001',
+    brand: 'CleanFeet',
+    variant: 'Grey'
   },
   {
     id: 'personal-blender-bottle',
@@ -323,7 +468,10 @@ const products = [
     description: 'A convenient blender bottle for quick shakes and smoothies. Easy to clean and portable.',
     price: 25.00,
     imageUrl: 'https://placehold.co/300x300/CD5C5C/000000?text=Blender+Bottle',
-    category: 'Kitchen'
+    category: 'Kitchen',
+    sku: 'KCH-BOTTLE-001',
+    brand: 'ShakeIt',
+    variant: '24oz'
   },
   {
     id: 'wireless-charging-pad',
@@ -331,7 +479,10 @@ const products = [
     description: 'Fast and efficient wireless charging pad for compatible smartphones and devices.',
     price: 29.00,
     imageUrl: 'https://placehold.co/300x300/DC143C/000000?text=Charging+Pad',
-    category: 'Electronics'
+    category: 'Electronics',
+    sku: 'EL-CHARGE-001',
+    brand: 'PowerUp',
+    variant: 'Fast'
   },
   {
     id: 'kitchen-chef-knife-set',
@@ -339,7 +490,10 @@ const products = [
     description: 'Professional-grade chef knife set with essential knives for every culinary task. High-quality steel.',
     price: 89.99,
     imageUrl: 'https://placehold.co/300x300/B22222/000000?text=Knife+Set',
-    category: 'Kitchen'
+    category: 'Kitchen',
+    sku: 'KCH-KNIFE-001',
+    brand: 'ChefPro',
+    variant: '5-piece'
   },
   {
     id: 'instant-cold-brew-maker',
@@ -347,7 +501,10 @@ const products = [
     description: 'Make delicious cold brew coffee at home in minutes with this easy-to-use instant maker.',
     price: 34.99,
     imageUrl: 'https://placehold.co/300x300/8B0000/000000?text=Cold+Brew+Maker',
-    category: 'Kitchen'
+    category: 'Kitchen',
+    sku: 'KCH-COLDBREW-001',
+    brand: 'BrewQuick',
+    variant: 'Standard'
   },
   {
     id: 'uv-sanitizing-box',
@@ -355,7 +512,10 @@ const products = [
     description: 'Sterilize your phone, keys, and other small items with powerful UV-C light. Keep germs at bay.',
     price: 49.99,
     imageUrl: 'https://placehold.co/300x300/A52A2A/000000?text=UV+Sanitizer',
-    category: 'Health & Personal Care'
+    category: 'Health & Personal Care',
+    sku: 'HPC-UVSAN-001',
+    brand: 'CleanTech',
+    variant: 'Compact'
   },
   {
     id: 'portable-fire-pit',
@@ -363,7 +523,10 @@ const products = [
     description: 'Enjoy cozy evenings outdoors with this compact and easy-to-assemble portable fire pit.',
     price: 79.00,
     imageUrl: 'https://placehold.co/300x300/D2B48C/000000?text=Fire+Pit',
-    category: 'Outdoor'
+    category: 'Outdoor',
+    sku: 'OUT-FIREPIT-001',
+    brand: 'CampFire',
+    variant: 'Portable'
   },
   {
     id: 'commuter-insulated-backpack',
@@ -371,7 +534,10 @@ const products = [
     description: 'Keep your food and drinks cool on the go with this stylish and insulated commuter backpack.',
     price: 59.00,
     imageUrl: 'https://placehold.co/300x300/F4A460/000000?text=Insulated+Backpack',
-    category: 'Travel'
+    category: 'Travel',
+    sku: 'TRVL-BPACK-001',
+    brand: 'GoPack',
+    variant: 'Insulated'
   },
   {
     id: 'labubu-vampire-bunny-plush',
@@ -379,7 +545,10 @@ const products = [
     description: 'A special edition Labubu plush, dressed as a charming vampire bunny. Spooky and cute!',
     price: 28.00,
     imageUrl: 'https://placehold.co/300x300/FF7F50/000000?text=Labubu+Vampire',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-VAMP',
+    brand: 'Popmart',
+    variant: 'Vampire'
   },
   {
     id: 'labubu-sweet-dream-figure',
@@ -387,7 +556,10 @@ const products = [
     description: 'A delightful Labubu figure depicting a sweet dream scene. Perfect for display.',
     price: 17.50,
     imageUrl: 'https://placehold.co/300x300/FF69B4/000000?text=Labubu+Sweet+Dream',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-SD',
+    brand: 'Popmart',
+    variant: 'Sweet Dream'
   },
   {
     id: 'labubu-trick-or-treat-series',
@@ -395,7 +567,10 @@ const products = [
     description: 'Get into the Halloween spirit with the Labubu Trick-or-Treat blind box series. Collect all the ghoulishly cute figures!',
     price: 16.99,
     imageUrl: 'https://placehold.co/300x300/FF1493/000000?text=Labubu+Trick',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-LABU-TOT',
+    brand: 'Popmart',
+    variant: 'Halloween'
   },
   {
     id: 'marvel-collector-keychain',
@@ -403,7 +578,10 @@ const products = [
     description: 'Officially licensed Marvel collectible keychain. Choose your favorite superhero!',
     price: 7.99,
     imageUrl: 'https://placehold.co/300x300/C71585/000000?text=Marvel+Keychain',
-    category: 'Collectible'
+    category: 'Collectible',
+    sku: 'COL-MARVEL-KC',
+    brand: 'Marvel',
+    variant: 'Assorted'
   },
   {
     id: 'holiday-advent-calendar',
@@ -411,12 +589,14 @@ const products = [
     description: 'Count down to the holidays with a surprise treat or toy each day. A festive way to celebrate!',
     price: 25.00,
     imageUrl: 'https://placehold.co/300x300/DB7093/000000?text=Advent+Calendar',
-    category: 'Holiday'
+    category: 'Holiday',
+    sku: 'HOL-ADVENT-001',
+    brand: 'FestiveFun',
+    variant: 'Standard'
   }
 ];
 
 // Define a subset of products for the "Featured Products" section on the Home Page
-// Filter for Labubu products and other items explicitly categorized as 'Collectible'
 const featuredProducts = products.filter(product =>
   product.name.toLowerCase().includes('labubu') || product.category === 'Collectible'
 );
@@ -443,7 +623,7 @@ const Header = ({ navigate, cartItemCount }) => {
             Products
           </button>
           <button
-            onClick={() => navigate('simulatedSearch')} // New navigation button
+            onClick={() => navigate('simulatedSearch')}
             className="text-lg hover:text-purple-200 transition duration-300 ease-in-out transform hover:scale-105"
           >
             Simulate Ad
@@ -465,8 +645,30 @@ const Header = ({ navigate, cartItemCount }) => {
   );
 };
 
-// New Banner Component
 const PartnershipBanner = () => {
+  useEffect(() => {
+    // Promotion Viewed event
+    safeAnalytics('track', 'Promotion Viewed', {
+      promotion_id: 'labubu_popmart_banner_top',
+      creative: 'labubu_x_popmart_banner',
+      name: 'Labubu x Popmart Exclusive Partnership',
+      position: 'home_banner_top'
+    });
+  }, []);
+
+  const handleShopNowClick = () => {
+    // Promotion Clicked event
+    safeAnalytics('track', 'Promotion Clicked', {
+      promotion_id: 'labubu_popmart_banner_top',
+      creative: 'labubu_x_popmart_banner',
+      name: 'Labubu x Popmart Exclusive Partnership',
+      position: 'home_banner_top'
+    });
+    // Navigate to products page or a specific Labubu category page
+    // For now, we'll just log it. In a real app, this would navigate.
+    // navigate('products'); // If navigate was passed as a prop
+  };
+
   return (
     <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 px-4 rounded-xl shadow-lg mb-12 text-center transform transition duration-500 hover:scale-102">
       <div className="container mx-auto flex flex-col md:flex-row items-center justify-center gap-6">
@@ -484,8 +686,10 @@ const PartnershipBanner = () => {
           <p className="text-lg md:text-xl font-medium opacity-90">
             Discover the latest Labubu drops and limited editions, only here.
           </p>
-          {/* You can add your 'promotion_clicked' or 'labubu_campaign_engaged' event tracking here */}
-          <button className="mt-6 bg-white text-purple-700 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-purple-100 hover:text-purple-800 transition duration-300 transform hover:scale-105">
+          <button
+            onClick={handleShopNowClick}
+            className="mt-6 bg-white text-purple-700 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-purple-100 hover:text-purple-800 transition duration-300 transform hover:scale-105"
+          >
             Shop Labubu Now!
           </button>
         </div>
@@ -495,7 +699,7 @@ const PartnershipBanner = () => {
 };
 
 
-const ProductCard = ({ product, navigate }) => {
+const ProductCard = ({ product, navigate, position }) => {
   const { cart, setCart } = useContext(CartContext);
 
   const handleAddToCart = () => {
@@ -507,7 +711,17 @@ const ProductCard = ({ product, navigate }) => {
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    // You can add your 'added_to_cart' event tracking here
+    // Product Added event
+    safeAnalytics('track', 'Product Added', {
+      cart_id: 'brandazon_cart_id', // Placeholder cart ID
+      products: [formatProductForSegment(product, 1, position)]
+    });
+  };
+
+  const handleViewDetails = () => {
+    // Product Clicked event
+    safeAnalytics('track', 'Product Clicked', formatProductForSegment(product, 1, position));
+    navigate('productDetail', product.id);
   };
 
   return (
@@ -526,7 +740,7 @@ const ProductCard = ({ product, navigate }) => {
         </div>
         <div className="flex flex-col space-y-3">
           <button
-            onClick={() => navigate('productDetail', product.id)}
+            onClick={handleViewDetails}
             className="w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 ease-in-out shadow-md hover:shadow-lg"
           >
             View Details
@@ -545,16 +759,21 @@ const ProductCard = ({ product, navigate }) => {
 
 const HomePage = ({ navigate }) => {
   useEffect(() => {
-    // You can add your 'page_view' or 'viewed_home_screen' event tracking here
+    // Product List Viewed event for Featured Products
+    safeAnalytics('track', 'Product List Viewed', {
+      list_id: 'featured_labubu_collectibles',
+      category: 'Collectible',
+      products: featuredProducts.map((p, index) => formatProductForSegment(p, 1, index + 1))
+    });
   }, []);
 
   return (
     <div className="container mx-auto p-6">
-      <PartnershipBanner /> {/* The new banner component */}
+      <PartnershipBanner />
       <h2 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Featured Labubu & Popmart Collectibles</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {featuredProducts.map(product => (
-          <ProductCard key={product.id} product={product} navigate={navigate} />
+        {featuredProducts.map((product, index) => (
+          <ProductCard key={product.id} product={product} navigate={navigate} position={index + 1} />
         ))}
       </div>
       <div className="text-center mt-12">
@@ -571,37 +790,39 @@ const HomePage = ({ navigate }) => {
 
 const ProductsPage = ({ navigate }) => {
   useEffect(() => {
-    // You can add your 'page_view' or 'product_list_viewed' event tracking here
+    // Product List Viewed event for All Products
+    safeAnalytics('track', 'Product List Viewed', {
+      list_id: 'all_products',
+      category: 'All',
+      products: products.map((p, index) => formatProductForSegment(p, 1, index + 1))
+    });
   }, []);
 
   return (
     <div className="container mx-auto p-6">
       <h2 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">All Products</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {products.map(product => (
-          <ProductCard key={product.id} product={product} navigate={navigate} />
+        {products.map((product, index) => (
+          <ProductCard key={product.id} product={product} navigate={navigate} position={index + 1} />
         ))}
       </div>
     </div>
   );
 };
 
-const ProductDetailPage = ({ productId, navigate }) => { // productId is now received as a prop
+const ProductDetailPage = ({ productId, navigate }) => {
   const [utmParams, setUtmParams] = useState(null);
   const { cart, setCart } = useContext(CartContext);
 
-  // Find the product based on the productId prop
   const product = products.find(p => p.id === productId);
 
   useEffect(() => {
-    // Parse URL parameters from window.location.hash.split('?')[1]
     const hashParts = window.location.hash.split('?');
     const queryString = hashParts.length > 1 ? hashParts[1] : '';
     const params = new URLSearchParams(queryString);
 
     const parsedUtm = {};
     for (let [key, value] of params.entries()) {
-      // Collect all parameters, especially UTM and Google Ads related ones
       if (key.startsWith('utm_') || key.startsWith('gad_') || key.startsWith('gclid') || key.startsWith('gbraid')) {
         parsedUtm[key] = value;
       }
@@ -609,32 +830,37 @@ const ProductDetailPage = ({ productId, navigate }) => { // productId is now rec
     if (Object.keys(parsedUtm).length > 0) {
       setUtmParams(parsedUtm);
     } else {
-      setUtmParams(null); // Clear if no UTMs are present
+      setUtmParams(null);
     }
 
     if (product) {
-      // You can add your 'page_view' or 'product_viewed' event tracking here
-      // If UTM parameters are present, this is where you'd log your 'Campaign Attribution Recorded' event
-      if (utmParams) {
-        // Example for Segment:
-        // analytics.track('Campaign Attribution Recorded', {
-        //   product_id: product.id,
-        //   product_name: product.name,
-        //   utm_source: utmParams.utm_source,
-        //   utm_medium: utmParams.utm_medium,
-        //   utm_campaign: utmParams.utm_campaign,
-        //   utm_content: utmParams.utm_content,
-        //   utm_term: utmParams.utm_term,
-        //   gad_source: utmParams.gad_source,
-        //   gad_campaignid: utmParams.gad_campaignid,
-        //   gbraid: utmParams.gbraid,
-        //   gclid: utmParams.gclid,
-        //   // ... other relevant parameters
-        // });
-        console.log('Campaign Attribution Recorded (from URL parameters):', utmParams);
+      // Product Viewed event
+      safeAnalytics('track', 'Product Viewed', {
+        product_id: product.id,
+        sku: product.sku,
+        category: product.category,
+        name: product.name,
+        brand: product.brand,
+        variant: product.variant,
+        price: product.price,
+        quantity: 1,
+        currency: 'USD', // Assuming USD as default currency
+        value: product.price, // Value for single item view
+        url: `${window.location.origin}${window.location.pathname}#/product/${product.id}`,
+        image_url: product.imageUrl,
+        // position: ... // Position is not applicable for a single product detail page
+      });
+
+      // Campaign Attribution Recorded (if UTMs are present)
+      if (Object.keys(parsedUtm).length > 0) {
+        safeAnalytics('track', 'Campaign Attribution Recorded', {
+          product_id: product.id,
+          product_name: product.name,
+          ...parsedUtm // Spread all collected UTM/GA parameters
+        });
       }
     }
-  }, [productId, product, utmParams]); // Depend on productId, product, and utmParams to ensure tracking fires when they are resolved
+  }, [productId, product, utmParams]);
 
   if (!product) {
     return (
@@ -649,14 +875,20 @@ const ProductDetailPage = ({ productId, navigate }) => { // productId is now rec
 
   const handleAddToCart = () => {
     const existingItem = cart.find(item => item.id === product.id);
+    let quantityAdded = 1;
     if (existingItem) {
       setCart(cart.map(item =>
         item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
       ));
+      quantityAdded = existingItem.quantity + 1; // Total quantity in cart after add
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    // You can add your 'added_to_cart' event tracking here
+    // Product Added event
+    safeAnalytics('track', 'Product Added', {
+      cart_id: 'brandazon_cart_id', // Placeholder cart ID
+      products: [formatProductForSegment(product, 1)] // Always add 1 unit per click
+    });
   };
 
   return (
@@ -694,8 +926,12 @@ const CartPage = ({ navigate }) => {
   const { cart, setCart } = useContext(CartContext);
 
   useEffect(() => {
-    // You can add your 'cart_viewed' event tracking here
-  }, []);
+    // Cart Viewed event
+    safeAnalytics('track', 'Cart Viewed', {
+      cart_id: 'brandazon_cart_id', // Placeholder cart ID
+      products: cart.map(item => formatProductForSegment(item, item.quantity))
+    });
+  }, [cart]); // Re-track when cart changes
 
   const updateQuantity = (id, delta) => {
     const item = cart.find(i => i.id === id);
@@ -703,17 +939,28 @@ const CartPage = ({ navigate }) => {
 
     const newQuantity = item.quantity + delta;
     if (newQuantity <= 0) {
-      // Remove item if quantity is 0 or less
+      // Product Removed event
+      safeAnalytics('track', 'Product Removed', {
+        cart_id: 'brandazon_cart_id',
+        products: [formatProductForSegment(item, item.quantity)] // Track original quantity being removed
+      });
       setCart(cart.filter(i => i.id !== id));
-      // You can add your 'removed_from_cart' event tracking here
     } else {
       setCart(cart.map(i =>
         i.id === id ? { ...i, quantity: newQuantity } : i
       ));
       if (delta > 0) {
-        // You can add your 'added_to_cart' event tracking here
+        // Product Added event (for quantity increase)
+        safeAnalytics('track', 'Product Added', {
+          cart_id: 'brandazon_cart_id',
+          products: [formatProductForSegment(item, 1)] // Track 1 unit added
+        });
       } else {
-        // You can add your 'removed_from_cart' event tracking here
+        // Product Removed event (for quantity decrease)
+        safeAnalytics('track', 'Product Removed', {
+          cart_id: 'brandazon_cart_id',
+          products: [formatProductForSegment(item, 1)] // Track 1 unit removed
+        });
       }
     }
   };
@@ -721,15 +968,30 @@ const CartPage = ({ navigate }) => {
   const removeItem = (id) => {
     const itemToRemove = cart.find(item => item.id === id);
     if (itemToRemove) {
+      // Product Removed event (for full item removal)
+      safeAnalytics('track', 'Product Removed', {
+        cart_id: 'brandazon_cart_id',
+        products: [formatProductForSegment(itemToRemove, itemToRemove.quantity)]
+      });
       setCart(cart.filter(item => item.id !== id));
-      // You can add your 'removed_from_cart' event tracking here
     }
   };
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleCheckout = () => {
-    // You can add your 'checkout_started' event tracking here
+    // Checkout Started event
+    safeAnalytics('track', 'Checkout Started', {
+      order_id: `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Generate a unique order_id
+      affiliation: 'Brandazon Online Store',
+      value: totalAmount,
+      revenue: totalAmount, // Assuming no separate discounts/taxes for simplicity here
+      shipping: 0, // Placeholder
+      tax: 0,      // Placeholder
+      discount: 0, // Placeholder
+      currency: 'USD',
+      products: cart.map(item => formatProductForSegment(item, item.quantity))
+    });
     navigate('checkout');
   };
 
@@ -818,13 +1080,59 @@ const CheckoutPage = ({ navigate }) => {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  // Placeholder for user ID - In a real app, this would come from an auth system
+  const userId = 'user_12345';
+  const userTraits = {
+    email: 'user@example.com',
+    name: 'John Doe',
+    // Add other user properties here
+  };
+
   useEffect(() => {
-    // You can add your 'page_view' for 'Checkout Page' event tracking here
-  }, []);
+    // Identify call on checkout page load (or when user logs in/is identified)
+    safeAnalytics('identify', userId, userTraits);
+
+    // Checkout Step Viewed event
+    safeAnalytics('track', 'Checkout Step Viewed', {
+      checkout_id: 'brandazon_checkout_id', // Placeholder checkout ID
+      step: 1, // Assuming this is the first step of checkout
+      // shipping_method: '...', // Can be added if selected earlier
+      // payment_method: '...'   // Can be added if selected earlier
+    });
+  }, []); // Only on mount
 
   const handlePlaceOrder = () => {
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    // You can add your 'order_completed' event tracking here
+    const revenue = totalAmount; // Assuming revenue is total amount for simplicity
+    const shipping = 0; // Placeholder
+    const tax = 0;      // Placeholder
+    const discount = 0; // Placeholder
+    const coupon = 'N/A'; // Placeholder
+
+    // Payment Info Entered event (simulated before Order Completed)
+    safeAnalytics('track', 'Payment Info Entered', {
+      checkout_id: 'brandazon_checkout_id',
+      order_id: orderId,
+      // step: 2, // If you have a separate payment step
+      payment_method: 'Credit Card' // Placeholder
+    });
+
+    // Order Completed event
+    safeAnalytics('track', 'Order Completed', {
+      checkout_id: 'brandazon_checkout_id',
+      order_id: orderId,
+      affiliation: 'Brandazon Online Store',
+      total: totalAmount + shipping + tax - discount, // Total including shipping/tax, after discount
+      subtotal: totalAmount, // Subtotal before shipping/tax, after discounts
+      revenue: revenue,
+      shipping: shipping,
+      tax: tax,
+      discount: discount,
+      coupon: coupon,
+      currency: 'USD',
+      products: cart.map(item => formatProductForSegment(item, item.quantity))
+    });
+
     setOrderPlaced(true);
     setCart([]); // Clear cart after purchase
   };
@@ -938,7 +1246,8 @@ const SimulatedSearchEnginePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // You can add your 'page_view' for 'Simulated Search Engine' here
+    // Page view for Simulated Search Engine
+    safeAnalytics('page', 'Simulated Search Engine');
   }, []);
 
   const handleAdClick = () => {
@@ -955,6 +1264,11 @@ const SimulatedSearchEnginePage = () => {
       targetProductId = matchedProduct.id;
     }
 
+    // Products Searched event
+    safeAnalytics('track', 'Products Searched', {
+      query: searchTerm.trim()
+    });
+
     // Construct the query parameters string
     const queryParams = new URLSearchParams();
     queryParams.append('utm_source', 'google');
@@ -967,11 +1281,9 @@ const SimulatedSearchEnginePage = () => {
     queryParams.append('gbraid', '0AAAAApZoGaVNZnuRe968aNy6x-Z4Y9TI6');
     queryParams.append('gclid', 'CjwKCAjw1ozEBhAdEiwAn9qbzT99fJagIv7foNLlQnHysh63ZqtvIRL_hVhVDsUw_948_5Hs1WQu-BoCZCYQAvD_BwE'); // Example GCLID
 
-    // Construct the full URL with hash routing for SPA and query parameters
     const baseUrl = window.location.origin + window.location.pathname;
     const constructedUrl = `${baseUrl}#/product/${targetProductId}?${queryParams.toString()}`;
 
-    // Simulate a full page redirect to update the URL in the browser
     window.location.href = constructedUrl;
   };
 
@@ -1009,57 +1321,88 @@ const SimulatedSearchEnginePage = () => {
 
 // --- Main App Component ---
 const App = () => {
-  // We'll manage routing based on window.location.hash directly
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [cart, setCart] = useState([]);
 
-  // Effect to listen for hash changes and update routing state
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
+      let pageName = '';
+      let pageCategory = '';
+
       if (hash.startsWith('#/product/')) {
-        // Extract product ID from hash, ignoring query parameters for the ID itself
         const productIdFromHash = hash.split('?')[0].replace('#/product/', '');
         setCurrentPage('productDetail');
         setSelectedProductId(productIdFromHash);
+        pageName = 'Product Detail Page';
+        pageCategory = 'E-commerce';
       } else if (hash === '#/products') {
         setCurrentPage('products');
-        setSelectedProductId(null); // Clear product ID when navigating to general products page
+        setSelectedProductId(null);
+        pageName = 'All Products Page';
+        pageCategory = 'E-commerce';
       } else if (hash === '#/simulatedSearch') {
         setCurrentPage('simulatedSearch');
         setSelectedProductId(null);
+        pageName = 'Simulated Search Engine Page';
+        pageCategory = 'Marketing';
       } else if (hash === '#/cart') {
         setCurrentPage('cart');
         setSelectedProductId(null);
+        pageName = 'Cart Page';
+        pageCategory = 'E-commerce';
       } else if (hash === '#/checkout') {
         setCurrentPage('checkout');
         setSelectedProductId(null);
-      }
-      else {
+        pageName = 'Checkout Page';
+        pageCategory = 'E-commerce';
+      } else {
         setCurrentPage('home');
         setSelectedProductId(null);
+        pageName = 'Home Page';
+        pageCategory = 'E-commerce';
       }
+
+      // Segment Page call for every route change
+      safeAnalytics('page', pageCategory, pageName, {
+        path: window.location.pathname + window.location.hash,
+        url: window.location.href
+      });
+
     };
 
-    // Set initial page based on current hash
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
-
-    // Cleanup listener
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []); // Run once on mount
+  }, []);
 
-  // Internal navigation function (for internal app links)
+  // Placeholder for initial user identification (e.g., on first load or after login)
+  useEffect(() => {
+    // In a real app, you'd get a user ID from an authentication system
+    // For now, we can generate a simple one or use a static one for testing
+    const anonymousId = localStorage.getItem('anonymousId');
+    if (!anonymousId) {
+      const newAnonymousId = `anon-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+      localStorage.setItem('anonymousId', newAnonymousId);
+      safeAnalytics('identify', newAnonymousId); // Identify with anonymous ID
+    } else {
+      safeAnalytics('identify', anonymousId); // Re-identify existing anonymous user
+    }
+
+    // Example of tracking a custom event on app load
+    safeAnalytics('track', 'Application Loaded');
+
+  }, []);
+
+
   const navigate = (page, productId = null) => {
     let newHash = '';
     switch (page) {
       case 'home':
-        newHash = ''; // Empty hash for home
+        newHash = '';
         break;
       case 'products':
         newHash = '#/products';
@@ -1079,7 +1422,7 @@ const App = () => {
       default:
         newHash = '';
     }
-    window.location.hash = newHash; // Update hash, which will trigger handleHashChange
+    window.location.hash = newHash;
   };
 
   const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
@@ -1104,9 +1447,8 @@ const App = () => {
               case 'products':
                 return <ProductsPage navigate={navigate} />;
               case 'simulatedSearch':
-                return <SimulatedSearchEnginePage />; // No navigate prop needed here, it uses window.location
+                return <SimulatedSearchEnginePage />;
               case 'productDetail':
-                // ProductDetailPage now reads its own productId and UTMs from the URL
                 return <ProductDetailPage productId={selectedProductId} navigate={navigate} />;
               case 'cart':
                 return <CartPage navigate={navigate} />;
